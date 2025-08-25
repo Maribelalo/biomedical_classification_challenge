@@ -15,13 +15,13 @@ def main():
     """Carga un CSV, predice grupos y muestra métricas. Permite omitir la evaluación si no hay etiquetas verdaderas.
 
     Uso:
-      python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';' [--skip-eval]
+      python app.py --input data/nuevo_dataset.csv --output output/predicciones_evaluadas.csv --delimiter ';' [--skip-eval]
     """
     import argparse
 
     parser = argparse.ArgumentParser(description='Evaluar predicción de grupos en un CSV')
     parser.add_argument('--input', type=str, required=True, help='Ruta al archivo CSV de entrada')
-    parser.add_argument('--output', type=str, default='models/predicciones_evaluadas.csv', help='Ruta al archivo CSV de salida')
+    parser.add_argument('--output', type=str, default='output/predicciones_evaluadas.csv', help='Ruta al archivo CSV de salida')
     parser.add_argument('--delimiter', type=str, default=';', help="Delimitador del CSV de entrada (por defecto ';')")
     parser.add_argument('--skip-eval', action='store_true', help='No calcular métricas aunque exista la columna group')
     args = parser.parse_args()
