@@ -3,6 +3,10 @@
 Este proyecto implementa una solución de **Machine Learning** para la clasificación automática de literatura médica.  
 Se utiliza procesamiento de lenguaje natural y modelos de clasificación multietiqueta.
 
+**Informe y Diagrama**  
+- ![Ver diagrama](ruta/a/la/imagen.png)
+- [Ver informe final](ruta/a/archivo.pdf)
+
 ## Requerimientos
 
 * Python 3.8+
