@@ -4,8 +4,8 @@ Este proyecto implementa una solución de **Machine Learning** para la clasifica
 Se utiliza procesamiento de lenguaje natural y modelos de clasificación multietiqueta.
 
 **Informe y Diagrama**  
-- ![Ver diagrama](ruta/a/la/imagen.png)
-- [Ver informe final](ruta/a/archivo.pdf)
+- [Ver diagrama](https://github.com/Maribelalo/biomedical_classification_challenge/blob/8e946081fa18af17a7d80aa820f777366cf1c7f2/Diagrama%20-%20Clasificaci%C3%B3n%20literatura%20m%C3%A9dica.png)
+- [Ver informe final](https://github.com/Maribelalo/biomedical_classification_challenge/blob/7c20d4c12572cac34eec761f6e089521fcf2cdad/Informe%20Final%20de%20Resultados.pdf)
 
 ## Requerimientos
 
