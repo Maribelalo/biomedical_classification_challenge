@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Pytest cache
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+
+# Model artifacts (pickles)
+models/*.pkl
+
+# Optional: large outputs
+models/prediction_errors.csv
+models/*.csv
+
+# Logs
+*.log
+
+# Coverage
+htmlcov/
+.coverage
+
+# Build
+dist/
+build/
+*.egg-info/

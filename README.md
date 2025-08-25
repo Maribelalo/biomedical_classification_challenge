@@ -1,7 +1,66 @@
 # Clasificación de Literatura Médica con Machine Learning
 
-Este proyecto implementa una solución de **Inteligencia Artificial** para la clasificación automática de literatura médica.  
-Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación multietiqueta.
+Este proyecto implementa una solución de **Machine Learning** para la clasificación automática de literatura médica.  
+Se utiliza procesamiento de lenguaje natural y modelos de clasificación multietiqueta.
+
+## Requerimientos
+
+* Python 3.8+
+* pandas
+* scikit-learn
+* nltk
+
+Instalar dependencias:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Entrenamiento
+```bash
+python src/train.py
+```
+
+## Ejecución
+
+El script `app.py` predice el/los grupo(s) para cada fila del CSV (columnas `title`, `abstract`)
+
+Requisitos previos
+- Ejecutar desde la raíz del proyecto.
+- Tener instaladas las dependencias del proyecto (p. ej. `pandas`, `scikit-learn`, `nltk`).
+- Tener los artefactos en `models/`:
+  - `vectorizer_gb_multilabel.pkl`
+  - `classifier_gb_multilabel.pkl`
+  - `mlb.pkl`
+
+Formato de entrada
+
+- Predecir y evaluar (CSV con `;` y columna `group_predicted` presente):
+ ```bash
+  python app.py --input data/nuevo_dataset.csv --output output/predicciones_evaluadas.csv --delimiter ';'
+  ```
+  
+- Para guardar también las métricas impresas en un archivo plano:
+ ```bash
+  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';' > output/predicciones_evaluadas.txt
+  ```
+  
+- CSV con comas como separador:
+```bash
+python app.py --input data/nuevo_dataset_comma.csv --delimiter , --output output/predicciones_evaluadas.csv
+```
+  
+
+Produce un archivo de salida csv las columnas originales + `group_predicted` (ruta = `--output`).
+
+
+Notas
+- Si algunas etiquetas verdaderas no fueron vistas en entrenamiento, se ignoran durante la evaluación.
+
+---
+
 
 ---
 
@@ -81,7 +140,7 @@ Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación m
 
 ---
 
-### 5. ✂División de datos
+### 5. División de datos
 
 * **train\_test\_split:**
 
@@ -146,29 +205,7 @@ Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación m
 
 ---
 
-## Requerimientos
-
-* Python 3.8+
-* pandas
-* scikit-learn
-* nltk
-
-Instalar dependencias:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Ejecución
-
-```bash
-python main.py
-```
-
----
 
 ## Resultados
 
-El modelo entrega métricas de **accuracy** y **F1-Score ponderado** en los conjuntos de validación y prueba, junto con un análisis por clase.
+El modelo entrega métricas de **accuracy** y **F1-Score ponderado** en los conjuntos de validación y prueba, junto con un análisis por grupo.
