@@ -1,0 +1,6 @@
+pandas>=1.1.5
+scikit-learn>=1.0
+nltk>=3.6.5
+numpy>=1.19.5
+scipy>=1.5.4
+iterative-stratification>=0.1.8

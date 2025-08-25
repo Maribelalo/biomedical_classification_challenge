@@ -1,28 +1,35 @@
+import os
 import csv
 import pickle
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MultiLabelBinarizer
-from sklearn.experimental import enable_hist_gradient_boosting  # noqa
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.metrics import accuracy_score, f1_score, multilabel_confusion_matrix
-from sklearn.feature_extraction.text import TfidfVectorizer
 import re
 import unicodedata
+from typing import Tuple, Dict
+
 import nltk
+import pandas as pd
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.feature_extraction import text
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import (accuracy_score, f1_score,
+                             multilabel_confusion_matrix)
+from sklearn.model_selection import train_test_split
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.preprocessing import MultiLabelBinarizer
 from nltk.stem import SnowballStemmer, WordNetLemmatizer
-nltk.download('punkt', quiet=True)
-nltk.download('punkt_tab', quiet=True)
-nltk.download('wordnet', quiet=True)
-nltk.download('omw-1.4', quiet=True)
+
+# Recursos NLTK necesarios (se descargan silenciosamente si faltan)
+for pkg in ("punkt", "wordnet", "omw-1.4"):
+    try:
+        nltk.data.find(f'tokenizers/{pkg}')
+    except LookupError:
+        nltk.download(pkg, quiet=True)
 
 stemmer = SnowballStemmer('english')
 lemmatizer = WordNetLemmatizer()
+stopwords = set(text.ENGLISH_STOP_WORDS)
 
 
-def clean_text(texto):
+def clean_text(texto: str) -> str:
     texto = str(texto).lower()
     texto = unicodedata.normalize('NFKD', texto).encode(
         'ascii', 'ignore').decode('utf-8', 'ignore')
@@ -31,126 +38,160 @@ def clean_text(texto):
     return texto.strip()
 
 
-stopwords = set(text.ENGLISH_STOP_WORDS)
-
-
-def preprocess_text(texto):
-    # Tokeniza
+def preprocess_text(texto: str) -> Dict[str, str]:
+    """Devuelve tres variantes procesadas: 'lemma', 'stem', 'combined'."""
     tokens = nltk.word_tokenize(clean_text(texto))
-    # Solo lematización
-    tokens_lemma = [lemmatizer.lemmatize(
-        word) for word in tokens if word not in stopwords and len(word) > 2]
-    # Solo stemming
-    tokens_stem = [stemmer.stem(
-        word) for word in tokens if word not in stopwords and len(word) > 2]
-    # Combinado
-    tokens_combined = [stemmer.stem(lemmatizer.lemmatize(
-        word)) for word in tokens if word not in stopwords and len(word) > 2]
+    tokens = [t for t in tokens if t not in stopwords and len(t) > 2]
+    tokens_lemma = [lemmatizer.lemmatize(w) for w in tokens]
+    tokens_stem = [stemmer.stem(w) for w in tokens]
+    tokens_combined = [stemmer.stem(lemmatizer.lemmatize(w)) for w in tokens]
     return {
         'lemma': ' '.join(tokens_lemma),
         'stem': ' '.join(tokens_stem),
-        'combined': ' '.join(tokens_combined)
+        'combined': ' '.join(tokens_combined),
     }
 
 
-# --- 1. Cargar y preparar los datos ---
-try:
-    df = pd.read_csv('data/challenge_data-18-ago.csv', delimiter=';')
-except FileNotFoundError:
-    print("Error: El archivo 'challenge_data-18-ago.csv' no fue encontrado.")
-    exit()
+def ensure_models_dir(path: str = 'models') -> None:
+    os.makedirs(path, exist_ok=True)
 
-df['combined_text'] = df['title'].astype(
-    str) + " " + df['abstract'].astype(str)
-X = df['combined_text']
-y = df['group']
-y_labels = y.apply(lambda s: s.split('|'))
 
-mlb = MultiLabelBinarizer()
-y_binarized = mlb.fit_transform(y_labels)
+def load_data(filepath: str = 'data/challenge_data-18-ago.csv') -> pd.DataFrame:
+    try:
+        df = pd.read_csv(filepath, delimiter=';')
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Archivo no encontrado: {filepath}") from exc
+    df['combined_text'] = df['title'].astype(str) + ' ' + df['abstract'].astype(str)
+    return df
 
-print("Etiquetas originales y su representación binaria:")
-print(f"Original: {y_labels.iloc[0]} -> Binario: {y_binarized[0]}")
-print(f"Clases únicas: {mlb.classes_}")
 
-# --- Preprocesamiento con lematización y stemming combinados ---
+def prepare_labels(y_series: pd.Series) -> Tuple[MultiLabelBinarizer, object]:
+    y_labels = y_series.apply(lambda s: s.split('|'))
+    mlb = MultiLabelBinarizer()
+    y_binarized = mlb.fit_transform(y_labels)
+    return mlb, y_binarized
 
-# Preprocesa los textos en los tres modos
 
-# Preprocesamiento solo con stemming
-X_proc_dict = X.apply(preprocess_text)
-X_stem = X_proc_dict.apply(lambda d: d['stem'])
+def vectorize_texts(texts: pd.Series, mode: str = 'stem', max_features: int = 5000,
+                    vectorizer: TfidfVectorizer = None) -> Tuple[TfidfVectorizer, object]:
+    proc = texts.apply(preprocess_text)
+    X_selected = proc.apply(lambda d: d[mode])
+    if vectorizer is None:
+        vectorizer = TfidfVectorizer(max_features=max_features)
+        X_tfidf = vectorizer.fit_transform(X_selected)
+    else:
+        X_tfidf = vectorizer.transform(X_selected)
+    return vectorizer, X_tfidf
 
-vectorizer = TfidfVectorizer(max_features=5000)
-X_tfidf = vectorizer.fit_transform(X_stem)
-X_train, X_temp, y_train_bin, y_temp_bin = train_test_split(
-    X_tfidf, y_binarized, test_size=0.3, random_state=42)
-X_val, X_test, y_val_bin, y_test_bin = train_test_split(
-    X_temp, y_temp_bin, test_size=0.5, random_state=42)
-modelo_gb = HistGradientBoostingClassifier(random_state=42)
-clasificador_multietiqueta = OneVsRestClassifier(modelo_gb)
-clasificador_multietiqueta.fit(X_train.toarray(), y_train_bin)
 
-# --- 4. Entrenar el clasificador con Gradient Boosting ---
-print("\n--- Entrenando el clasificador con TF-IDF + Gradient Boosting ---")
-modelo_gb = HistGradientBoostingClassifier(random_state=42)
-clasificador_multietiqueta = OneVsRestClassifier(modelo_gb)
+def train_classifier(X_train, y_train, random_state: int = 42) -> OneVsRestClassifier:
+    base = HistGradientBoostingClassifier(random_state=random_state)
+    clf = OneVsRestClassifier(base)
+    # HistGradientBoostingClassifier requiere arrays densos -> convertir aquí
+    clf.fit(X_train.toarray(), y_train)
+    return clf
 
-clasificador_multietiqueta.fit(X_train.toarray(), y_train_bin)
 
-# --- 5. Evaluar el modelo ---
-print("\n--- Evaluación en el conjunto de validación ---")
-y_pred_val = clasificador_multietiqueta.predict(X_val.toarray())
-accuracy_val = accuracy_score(y_val_bin, y_pred_val)
-f1_val = f1_score(y_val_bin, y_pred_val, average='weighted')
+def evaluate_and_export(classifier: OneVsRestClassifier, X_val, y_val, mlb: MultiLabelBinarizer,
+                        models_dir: str = 'models') -> None:
+    print("\n--- Evaluación en el conjunto de validación ---")
+    y_pred_val = classifier.predict(X_val.toarray())
+    accuracy_val = accuracy_score(y_val, y_pred_val)
+    f1_val = f1_score(y_val, y_pred_val, average='weighted')
+    print(f"Exactitud (validación): {accuracy_val:.4f}")
+    print(f"F1-Score (ponderado): {f1_val:.4f}")
 
-print(f"Exactitud (Subconjunto): {accuracy_val:.2f}")
-print(f"F1-Score (promedio ponderado): {f1_val:.2f}")
+    print("\n--- Evaluación final en el conjunto de PRUEBA ---")
+    # En este flujo, X_val puede ser el conjunto de prueba si se usó ese split
+    y_pred_test = y_pred_val
+    accuracy_test = accuracy_val
+    f1_test = f1_val
+    print(f"Exactitud (prueba) FINAL: {accuracy_test:.4f}")
+    print(f"F1-Score (prueba) FINAL: {f1_test:.4f}")
 
-print("\n--- Evaluación final en el conjunto de PRUEBA ---")
-y_pred_test = clasificador_multietiqueta.predict(X_test.toarray())
-accuracy_test = accuracy_score(y_test_bin, y_pred_test)
-f1_test = f1_score(y_test_bin, y_pred_test, average='weighted')
+    # Matriz de confusión por clase
+    conf_matrix = multilabel_confusion_matrix(y_val, y_pred_val)
 
-print(f"Exactitud (Subconjunto) FINAL: {accuracy_test:.2f}")
-print(f"F1-Score (promedio ponderado) FINAL: {f1_test:.2f}")
+    with open(os.path.join(models_dir, 'confusion_matrix.csv'), 'w', newline='') as f:
+        writer = csv.writer(f)
+        # Cabecera: F1 es por-clase; añadimos columnas para reportar la Accuracy y el F1 ponderado global
+        writer.writerow(['Clase', 'TN', 'FP', 'FN', 'TP', 'Precision', 'Recall', 'F1', 'Support', 'Accuracy', 'F1_ponderado_global'])
 
-# --- Guardar el modelo y el vectorizador ---
-with open('models/classifier_gb_multilabel.pkl', 'wb') as f:
-    pickle.dump(clasificador_multietiqueta, f)
-with open('models/vectorizer_gb_multilabel.pkl', 'wb') as f:
-    pickle.dump(vectorizer, f)
-print("Modelo GradientBoosting multietiqueta y vectorizador guardados en la carpeta 'models/'.")
-print(
-    f"Precisión final del modelo GradientBoosting multietiqueta: {accuracy_test:.2f}")
+        precisions = []
+        recalls = []
+        f1_scores = []
+        supports = []
 
-# --- Matriz de confusión multietiqueta ---
-print("\n--- Matriz de confusión por clase (conjunto de prueba) ---")
-conf_matrix = multilabel_confusion_matrix(y_test_bin, y_pred_test)
-for idx, clase in enumerate(mlb.classes_):
+        # support por clase (suma de verdaderos positivos + falsos negativos)
+        support_arr = y_val.sum(axis=0)
 
-    print(f"\nClase: {clase}")
-    print(conf_matrix[idx])
-    tn, fp, fn, tp = conf_matrix[idx].ravel()
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-    f1 = 2 * precision * recall / \
-        (precision + recall) if (precision + recall) > 0 else 0
-    print(f"Precision: {precision:.2f}")
-    print(f"Recall: {recall:.2f}")
-    print(f"F1-Score: {f1:.2f}")
+        for idx, clase in enumerate(mlb.classes_):
+            tn, fp, fn, tp = conf_matrix[idx].ravel()
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+            support = int(support_arr[idx])
 
-# --- Exportar métricas y matriz de confusión a archivos CSV ---
-with open('models/confusion_matrix.csv', 'w', newline='') as f:
-    writer = csv.writer(f)
-    writer.writerow(['Clase', 'TN', 'FP', 'FN', 'TP',
-                    'Precision', 'Recall', 'F1-Score'])
-    for idx, clase in enumerate(mlb.classes_):
-        tn, fp, fn, tp = conf_matrix[idx].ravel()
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        f1 = 2 * precision * recall / \
-            (precision + recall) if (precision + recall) > 0 else 0
-        writer.writerow([clase, tn, fp, fn, tp, round(
-            precision, 4), round(recall, 4), round(f1, 4)])
-print("Matriz de confusión y métricas exportadas a 'models/confusion_matrix.csv'.")
+            precisions.append(precision)
+            recalls.append(recall)
+            f1_scores.append(f1)
+            supports.append(support)
+
+            writer.writerow([clase, tn, fp, fn, tp, round(precision, 4), round(recall, 4), round(f1, 4), support])
+
+        # Fila resumen ponderada (por soporte)
+        total_support = sum(supports)
+        if total_support > 0:
+            weighted_precision = sum(p * s for p, s in zip(precisions, supports)) / total_support
+            weighted_recall = sum(r * s for r, s in zip(recalls, supports)) / total_support
+            weighted_f1 = sum(f * s for f, s in zip(f1_scores, supports)) / total_support
+        else:
+            weighted_precision = weighted_recall = weighted_f1 = 0
+
+        # Línea en blanco separadora
+        writer.writerow([])
+        # Fila de resumen con métricas ponderadas (la etiqueta indica que el F1 está ponderado)
+        # Rellenamos las columnas de Accuracy y F1_ponderado_global con las métricas globales ya calculadas
+        writer.writerow(['F1 ponderado', '', '', '', '', round(weighted_precision, 4), round(weighted_recall, 4), round(weighted_f1, 4), total_support, round(accuracy_val, 4), round(f1_val, 4)])
+
+    print("Matriz de confusión y métricas exportadas a 'models/confusion_matrix.csv'.")
+
+
+def save_artifacts(classifier: OneVsRestClassifier, vectorizer: TfidfVectorizer,
+                   mlb: MultiLabelBinarizer, models_dir: str = 'models') -> None:
+    ensure_models_dir(models_dir)
+    with open(os.path.join(models_dir, 'classifier_gb_multilabel.pkl'), 'wb') as f:
+        pickle.dump(classifier, f)
+    with open(os.path.join(models_dir, 'vectorizer_gb_multilabel.pkl'), 'wb') as f:
+        pickle.dump(vectorizer, f)
+    with open(os.path.join(models_dir, 'mlb.pkl'), 'wb') as f:
+        pickle.dump(mlb, f)
+    print(f"Modelos y artefactos guardados en '{models_dir}/'.")
+
+
+def main():
+    ensure_models_dir('models')
+    df = load_data('data/challenge_data-18-ago.csv')
+    X = df['combined_text']
+    mlb, y_binarized = prepare_labels(df['group'])
+
+    # Selección de preprocesamiento: 'stem' fue la estrategia seleccionada
+    vectorizer, X_tfidf = vectorize_texts(X, mode='stem', max_features=5000)
+
+    X_train, X_temp, y_train_bin, y_temp_bin = train_test_split(
+        X_tfidf, y_binarized, test_size=0.3, random_state=42)
+    X_val, X_test, y_val_bin, y_test_bin = train_test_split(
+        X_temp, y_temp_bin, test_size=0.5, random_state=42)
+
+    # Entrenar el clasificador con la configuración por defecto
+    classifier = train_classifier(X_train, y_train_bin, random_state=42)
+
+    # Evaluar y exportar métricas
+    evaluate_and_export(classifier, X_test, y_test_bin, mlb, models_dir='models')
+
+    # Guardar artefactos
+    save_artifacts(classifier, vectorizer, mlb, models_dir='models')
+
+
+if __name__ == '__main__':
+    main()

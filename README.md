@@ -3,6 +3,66 @@
 Este proyecto implementa una solución de **Inteligencia Artificial** para la clasificación automática de literatura médica.  
 Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación multietiqueta.
 
+## Requerimientos
+
+* Python 3.8+
+* pandas
+* scikit-learn
+* nltk
+
+Instalar dependencias:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Ejecución
+
+El script `app.py` predice el/los grupo(s) para cada fila del CSV (columnas `title`, `abstract`) y opcionalmente evalúa las predicciones si la entrada contiene la columna `group`.
+
+Requisitos previos
+- Ejecutar desde la raíz del proyecto.
+- Tener instaladas las dependencias del proyecto (p. ej. `pandas`, `scikit-learn`, `nltk`).
+- Tener los artefactos en `models/`:
+  - `vectorizer_gb_multilabel.pkl`
+  - `classifier_gb_multilabel.pkl`
+  - `mlb.pkl`
+
+Formato de entrada
+- CSV con al menos las columnas `title` y `abstract`.
+- Columna opcional `group` con etiquetas separadas por `|` (ej. `cardiovascular|oncological`) para evaluación.
+- Delimitador por defecto: `;` (puedes cambiarlo con `--delimiter`).
+
+Ejemplos de uso (zsh)
+- Predecir y evaluar (CSV con `;` y columna `group_predicted` presente):
+
+  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';'
+
+  Para guardar también las métricas impresas en un fichero:
+
+  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';' > models/prediction_metrics.txt
+
+- Solo predecir (omitir evaluación, útil si no hay `group_predicted`):
+
+  python app.py --input data/nuevo_dataset.csv --output output/predicciones_evaluadas.csv --skip-eval
+
+- CSV con comas como separador:
+
+  python app.py --input data/nuevo_dataset_comma.csv --delimiter , --output output/predicciones_evaluadas.csv
+
+Qué produce
+- Archivo de salida: CSV con todas las columnas originales + `group_predicted` (ruta = `--output`).
+- Si se evalúa (columna `group` y no `--skip-eval`): se muestran por consola métricas (subset accuracy, F1 ponderado), reporte por clase y matrices de confusión.
+
+
+Notas
+- Si algunas etiquetas verdaderas no fueron vistas en entrenamiento, se ignoran durante la evaluación y se mostrará un aviso.
+
+---
+
+
 ---
 
 ##  Flujo de la Solución
@@ -81,7 +141,7 @@ Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación m
 
 ---
 
-### 5. ✂División de datos
+### 5. División de datos
 
 * **train\_test\_split:**
 
@@ -146,28 +206,6 @@ Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación m
 
 ---
 
-## Requerimientos
-
-* Python 3.8+
-* pandas
-* scikit-learn
-* nltk
-
-Instalar dependencias:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Ejecución
-
-```bash
-python main.py
-```
-
----
 
 ## Resultados
 
