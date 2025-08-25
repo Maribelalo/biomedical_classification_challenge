@@ -1,7 +1,7 @@
 # Clasificación de Literatura Médica con Machine Learning
 
-Este proyecto implementa una solución de **Inteligencia Artificial** para la clasificación automática de literatura médica.  
-Se utiliza procesamiento de lenguaje natural (NLP) y modelos de clasificación multietiqueta.
+Este proyecto implementa una solución de **Machine Learning** para la clasificación automática de literatura médica.  
+Se utiliza procesamiento de lenguaje natural y modelos de clasificación multietiqueta.
 
 ## Requerimientos
 
@@ -18,9 +18,14 @@ pip install -r requirements.txt
 
 ---
 
+## Entrenamiento
+```bash
+python src/train.py
+```
+
 ## Ejecución
 
-El script `app.py` predice el/los grupo(s) para cada fila del CSV (columnas `title`, `abstract`) y opcionalmente evalúa las predicciones si la entrada contiene la columna `group`.
+El script `app.py` predice el/los grupo(s) para cada fila del CSV (columnas `title`, `abstract`)
 
 Requisitos previos
 - Ejecutar desde la raíz del proyecto.
@@ -31,34 +36,28 @@ Requisitos previos
   - `mlb.pkl`
 
 Formato de entrada
-- CSV con al menos las columnas `title` y `abstract`.
-- Columna opcional `group` con etiquetas separadas por `|` (ej. `cardiovascular|oncological`) para evaluación.
-- Delimitador por defecto: `;` (puedes cambiarlo con `--delimiter`).
 
-Ejemplos de uso (zsh)
 - Predecir y evaluar (CSV con `;` y columna `group_predicted` presente):
-
-  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';'
-
-  Para guardar también las métricas impresas en un fichero:
-
-  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';' > models/prediction_metrics.txt
-
-- Solo predecir (omitir evaluación, útil si no hay `group_predicted`):
-
-  python app.py --input data/nuevo_dataset.csv --output output/predicciones_evaluadas.csv --skip-eval
-
+ ```bash
+  python app.py --input data/nuevo_dataset.csv --output output/predicciones_evaluadas.csv --delimiter ';'
+  ```
+  
+- Para guardar también las métricas impresas en un archivo plano:
+ ```bash
+  python app.py --input data/nuevo_dataset.csv --output models/predicciones_evaluadas.csv --delimiter ';' > output/predicciones_evaluadas.txt
+  ```
+  
 - CSV con comas como separador:
+```bash
+python app.py --input data/nuevo_dataset_comma.csv --delimiter , --output output/predicciones_evaluadas.csv
+```
+  
 
-  python app.py --input data/nuevo_dataset_comma.csv --delimiter , --output output/predicciones_evaluadas.csv
-
-Qué produce
-- Archivo de salida: CSV con todas las columnas originales + `group_predicted` (ruta = `--output`).
-- Si se evalúa (columna `group` y no `--skip-eval`): se muestran por consola métricas (subset accuracy, F1 ponderado), reporte por clase y matrices de confusión.
+Produce un archivo de salida csv las columnas originales + `group_predicted` (ruta = `--output`).
 
 
 Notas
-- Si algunas etiquetas verdaderas no fueron vistas en entrenamiento, se ignoran durante la evaluación y se mostrará un aviso.
+- Si algunas etiquetas verdaderas no fueron vistas en entrenamiento, se ignoran durante la evaluación.
 
 ---
 
@@ -209,4 +208,4 @@ Notas
 
 ## Resultados
 
-El modelo entrega métricas de **accuracy** y **F1-Score ponderado** en los conjuntos de validación y prueba, junto con un análisis por clase.
+El modelo entrega métricas de **accuracy** y **F1-Score ponderado** en los conjuntos de validación y prueba, junto con un análisis por grupo.
